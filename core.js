@@ -15,7 +15,7 @@ function readDir(dir, callback) {
     if (status.isFile()) {
         return {
             path: dir,
-            name: dir.substr(dir.lastIndexOf('/') + 1),
+            name: path.basename(dir),
             type: "file",
             mtime: format.asString('yyyy-MM-dd hh:mm:ss', status.mtime),
             size: status.size
@@ -23,7 +23,7 @@ function readDir(dir, callback) {
     } else if (status.isSymbolicLink()) {
         return {
             path: dir,
-            name: dir.substr(dir.lastIndexOf('/') + 1),
+            name: path.basename(dir),
             type: "link",
             mtime: format.asString('yyyy-MM-dd hh:mm:ss', status.mtime),
             size: status.size
@@ -33,7 +33,7 @@ function readDir(dir, callback) {
     let files = fs.readdirSync(dir);
     let fileTree = {
         path: dir,
-        name: dir.substr(dir.lastIndexOf('/') + 1),
+        name: path.basename(dir),
         type: "dir",
         mtime: format.asString('yyyy-MM-dd hh:mm:ss', status.mtime),
         subs: [],
@@ -81,15 +81,25 @@ module.exports = {
     stop: () => {
         peddingStop = true;
     },
+    rm: (file) => {
+        
+    },
     ls: (dir) => {
         let files = fs.readdirSync(dir);
+        let resFiles = [];
         for (let i = 0; i < files.length; i++) {
             let file = files[i];
             let filePath = path.resolve(dir, file);
-            let status = fs.lstatSync(filePath);
+            let status = null;
+            try {
+                status = fs.lstatSync(filePath);
+            } catch (e) {
+                console.error(e);
+                continue;
+            }
             if (status.isFile() || status.isBlockDevice() 
                 || status.isCharacterDevice() || status.isSocket()) {
-                files[i] = {
+                file = {
                     path: filePath,
                     name: file,
                     type: "file",
@@ -97,7 +107,7 @@ module.exports = {
                     size: status.size
                 }
             } else if (status.isSymbolicLink()) {
-                files[i] = {
+                file = {
                     path: filePath,
                     name: file,
                     type: "link",
@@ -105,7 +115,7 @@ module.exports = {
                     size: status.size
                 }
             } else {
-                files[i] = {
+                file = {
                     path: filePath,
                     name: file,
                     type: "dir",
@@ -113,8 +123,12 @@ module.exports = {
                     size: status.size
                 }
             }
+            resFiles.push(file);
         }
-        return files;
+        return {
+            dir: dir,
+            files: resFiles
+        };
     },
     currentCount: () => {
         return itemCount;

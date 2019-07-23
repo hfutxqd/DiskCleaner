@@ -4,6 +4,7 @@
 <head>
     <meta charset="UTF-8">
     <link rel="stylesheet" href="layui/css/layui.css">
+    <link rel="stylesheet" href="layui_exts/mouseRightMenu.css" />
     <style>
         *,
         *::after,
@@ -13,24 +14,34 @@
             -webkit-app-region: no-drag;
             cursor: default;
         }
+
         body {
             padding: 0px 0px 0px 0px;
             background-color: white;
+            overflow-x: hidden;
+
         }
+
         th {
             z-index: 9;
+            padding: 1px 1px 1px 1px;
+            border-width: 1px;
+            border-style: solid;
+            border-color: #e6e6e6;
             background-color: white;
         }
+
         #ls_list thead th {
             position: sticky;
             top: 60px;
         }
+
         #toolbar {
             width: 100%;
             position: sticky;
-            z-index: 9;
+            z-index: 8;
             background-color: white;
-            padding: 16px 4px 4px 4px;
+            padding: 16px 4px 16px 4px;
             top: 0px;
         }
     </style>
@@ -55,7 +66,7 @@
     {{#  layui.each(d.files, function(index, item){ }}
         <tr path="{{ item.path }}" type="{{ item.type }}">
             {{# if(item.type === 'dir') { }}
-            <td><img src="images/directory.png" width="48px" height="48px" />{{ item.name }}</td>
+            <td><img src="images/directory.png" width="48px" height="48px" style="text-overflow: ellipsis;white-space: nowrap;" />{{ item.name }}</td>
             <td>{{ item.mtime }}</td>
             <td></td>
             {{# } else { }}
@@ -68,7 +79,7 @@
 </script>
 
 <body>
-    <div class="layui-container">
+    <div>
         <div id="toolbar" class="layui-btn-group">
             <button id="back" type="button" class="layui-btn layui-btn-primary layui-btn-sm">
                 <i class="layui-icon">&#xe65c;</i>
@@ -85,13 +96,13 @@
         </div>
         <div id="scanning" style="display: none;"></div>
         <div id="scan_result" style="display: none;"></div>
-        <table id="ls_list" class="layui-table">
+        <table id="ls_list" class="layui-table" lay-skin="row" style="margin-top: 0px;">
             <colgroup>
                 <col>
                 <col width="180px">
-                <col width="80px">
+                <col width="100px">
             </colgroup>
-            <thead>
+            <thead class="layui-table">
                 <tr>
                     <th>名称</th>
                     <th>修改时间</th>
@@ -111,18 +122,24 @@
 </body>
 <script src="layui/layui.js"></script>
 <script>
-    layui.use(['layer', 'laytpl', 'table', 'element'], function () {
+    layui.config({ base: 'layui_exts/' });
+    layui.use(['layer', 'laytpl', 'table', 'element', 'mouseRightMenu'], function () {
         var layer = layui.layer,
             element = layui.element,
             laytpl = layui.laytpl,
-            table = layui.table
-        $ = layui.$;
+            table = layui.table,
+            mouseRightMenu = layui.mouseRightMenu,
+            $ = layui.$;
         const {
             ipcRenderer,
-            remote
+            remote,
+            clipboard,
+            shell
         } = require('electron');
-        var currentPath = '/';
-
+        const os = ElectronRequire('os');
+        const path = ElectronRequire('path');
+        console.log(os.platform());
+        var currentPath = path.resolve('/');
         $(document).on('dblclick', '#file_list tr', function (e) {
             let file = $(e.currentTarget);
             let dir = file.attr('path');
@@ -132,18 +149,50 @@
             }
         });
 
+        $(document).on('contextmenu', '#file_list tr', function (e) {
+            var data = {
+                path: $(this).attr('path')
+            }
+            var menuData = [
+                { 'data': data, 'type': 1, 'title': '扫描此项目' },
+                { 'data': data, 'type': 2, 'title': '复制文件路径' },
+                { 'data': data, 'type': 3, 'title': '删除' },
+                { 'data': data, 'type': 4, 'title': '用文件管理器打开' }
+            ]
+            mouseRightMenu.open(menuData, false, function (d) {
+                switch (d.type) {
+                    case 1:
+                        break;
+                    case 2:
+                        clipboard.writeText(data.path);
+                        layer.msg('已复制路径到剪切板', {
+                            icon: 1,
+                            time: 2000 //2秒关闭（如果不配置，默认是3秒）
+                        }); 
+                        break;
+                    case 3: 
+                        break;
+                    case 4:
+                        shell.showItemInFolder(data.path);
+                        break;
+                }
+            })
+            return true;
+        });
+
         $(document).on('click', '#back', function (e) {
             if (currentPath === '/') {
                 return;
             }
-            let path = currentPath.substr(0, currentPath.lastIndexOf('/'));
-            if (path === '') {
-                path = '/';
+            let filePath = currentPath.substr(0, currentPath.lastIndexOf(path.sep));
+            if (filePath.lastIndexOf(path.sep) === -1) {
+                filePath += path.sep;
             }
-            ls(path);
+            console.log('filePath=' + filePath);
+            ls(filePath);
         });
         $(document).on('click', '#home', function (e) {
-            ls('/');
+            ls(os.homedir());
         });
 
         $(document).on('click', '#refresh', function (e) {
@@ -154,8 +203,9 @@
         worker.addEventListener("message", function (event) {
             result = event.data;
             if (result.type === 'ls') {
+                currentPath = result.data.dir;
                 laytpl(file_item.innerHTML).render({
-                    files: result.data
+                    files: result.data.files
                 }, html => {
                     document.getElementById('file_list').innerHTML = html;
                 });
@@ -171,16 +221,16 @@
             console.log(result);
         }, false);
 
-        ls('/');
+        ls(currentPath);
 
         function scanDir(dir) {
             worker.postMessage({ action: 'scanDir', data: dir });
         }
 
         function ls(dir) {
+            dir = path.resolve(dir);
             console.log('ls ' + dir);
             worker.postMessage({ action: 'ls', data: dir });
-            currentPath = dir;
         }
 
         function stop() {

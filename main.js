@@ -20,7 +20,7 @@ function createMainWindow() {
         maximizable: true,
         fullscreen: false,
         resizable: true,
-        title: app.getName(),
+        title: "Disk Cleaner",
         webPreferences: {
             nodeIntegration: true,
             nodeIntegrationInWorker: true,
