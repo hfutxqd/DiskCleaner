@@ -1,0 +1,2 @@
+ElectronRequire = require;
+delete require;

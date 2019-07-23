@@ -1,0 +1,193 @@
+<!DOCTYPE html>
+<html>
+
+<head>
+    <meta charset="UTF-8">
+    <link rel="stylesheet" href="layui/css/layui.css">
+    <style>
+        *,
+        *::after,
+        *::before {
+            -webkit-user-select: none;
+            -webkit-user-drag: none;
+            -webkit-app-region: no-drag;
+            cursor: default;
+        }
+        body {
+            padding: 0px 0px 0px 0px;
+            background-color: white;
+        }
+        th {
+            z-index: 9;
+            background-color: white;
+        }
+        #ls_list thead th {
+            position: sticky;
+            top: 60px;
+        }
+        #toolbar {
+            width: 100%;
+            position: sticky;
+            z-index: 9;
+            background-color: white;
+            padding: 16px 4px 4px 4px;
+            top: 0px;
+        }
+    </style>
+</head>
+
+<script id="file_item" type="text/html">
+    {{#
+        var bytecountToStr = function (bytes) {
+            if (bytes < 1024) {
+                return bytes + 'B';
+            } else if (bytes < 1024 * 1024) {
+                return (bytes / 1024).toFixed(2) + 'KB';
+            } else if (bytes < 1024 * 1024 * 1024) {
+                return (bytes / 1024 / 1024.0).toFixed(2) + 'MB';
+            } else if (bytes < 1024 * 1024 * 1024 * 1024) {
+                return (bytes / 1024 / 1024 / 1024.0).toFixed(2) + 'G';
+            } else {
+                return (bytes / 1024 / 1024 / 1024 / 1024.0).toFixed(2) + 'T';
+            }
+        }
+    }}
+    {{#  layui.each(d.files, function(index, item){ }}
+        <tr path="{{ item.path }}" type="{{ item.type }}">
+            {{# if(item.type === 'dir') { }}
+            <td><img src="images/directory.png" width="48px" height="48px" />{{ item.name }}</td>
+            <td>{{ item.mtime }}</td>
+            <td></td>
+            {{# } else { }}
+            <td><img src="images/file.png" width="48px" height="48px" />{{ item.name }}</td>
+            <td>{{ item.mtime }}</td>
+            <td>{{ bytecountToStr(item.size) }}</td>
+            {{# } }}
+        </tr>
+    {{#  }); }}
+</script>
+
+<body>
+    <div class="layui-container">
+        <div id="toolbar" class="layui-btn-group">
+            <button id="back" type="button" class="layui-btn layui-btn-primary layui-btn-sm">
+                <i class="layui-icon">&#xe65c;</i>
+            </button>
+            <button id="home" type="button" class="layui-btn layui-btn-primary layui-btn-sm">
+                <i class="layui-icon">&#xe68e;</i>
+            </button>
+            <button id="refresh" type="button" class="layui-btn layui-btn-primary layui-btn-sm">
+                <i class="layui-icon">&#xe669;</i>
+            </button>
+            <button id="scan" type="button" class="layui-btn layui-btn-primary layui-btn-sm">
+                <i class="layui-icon">&#xe628;</i>
+            </button>
+        </div>
+        <div id="scanning" style="display: none;"></div>
+        <div id="scan_result" style="display: none;"></div>
+        <table id="ls_list" class="layui-table">
+            <colgroup>
+                <col>
+                <col width="180px">
+                <col width="80px">
+            </colgroup>
+            <thead>
+                <tr>
+                    <th>名称</th>
+                    <th>修改时间</th>
+                    <th>大小</th>
+                </tr>
+            </thead>
+            <tbody id="file_list" style="overflow-y: auto; height: 180px;">
+                <tr style="height: 30px;">
+                    <td>/</td>
+                    <td>2016-11-29 11:34:45</td>
+                    <td></td>
+                </tr>
+            </tbody>
+        </table>
+    </div>
+
+</body>
+<script src="layui/layui.js"></script>
+<script>
+    layui.use(['layer', 'laytpl', 'table', 'element'], function () {
+        var layer = layui.layer,
+            element = layui.element,
+            laytpl = layui.laytpl,
+            table = layui.table
+        $ = layui.$;
+        const {
+            ipcRenderer,
+            remote
+        } = require('electron');
+        var currentPath = '/';
+
+        $(document).on('dblclick', '#file_list tr', function (e) {
+            let file = $(e.currentTarget);
+            let dir = file.attr('path');
+            let type = file.attr('type');
+            if (type === 'dir') {
+                ls(dir);
+            }
+        });
+
+        $(document).on('click', '#back', function (e) {
+            if (currentPath === '/') {
+                return;
+            }
+            let path = currentPath.substr(0, currentPath.lastIndexOf('/'));
+            if (path === '') {
+                path = '/';
+            }
+            ls(path);
+        });
+        $(document).on('click', '#home', function (e) {
+            ls('/');
+        });
+
+        $(document).on('click', '#refresh', function (e) {
+            ls(currentPath);
+        });
+
+        let worker = new Worker('worker.js');
+        worker.addEventListener("message", function (event) {
+            result = event.data;
+            if (result.type === 'ls') {
+                laytpl(file_item.innerHTML).render({
+                    files: result.data
+                }, html => {
+                    document.getElementById('file_list').innerHTML = html;
+                });
+            } else if (result.type === 'scanning') {
+
+            } else if (result.type === 'scanFinish') {
+
+            } else if (result.type === 'stop') {
+
+            } else if (result.type === 'currentCount') {
+
+            }
+            console.log(result);
+        }, false);
+
+        ls('/');
+
+        function scanDir(dir) {
+            worker.postMessage({ action: 'scanDir', data: dir });
+        }
+
+        function ls(dir) {
+            console.log('ls ' + dir);
+            worker.postMessage({ action: 'ls', data: dir });
+            currentPath = dir;
+        }
+
+        function stop() {
+            worker.postMessage({ action: 'stop' });
+        }
+    });
+
+</script>
+
+</html>

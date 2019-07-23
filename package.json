@@ -1,0 +1,21 @@
+{
+  "name": "disk_cleaner",
+  "version": "0.0.1",
+  "main": "main.js",
+  "scripts": {
+    "start": "electron .",
+    "pack": "electron-builder --dir",
+    "dist": "electron-builder"
+  },
+  "author": "imxqd",
+  "license": "MIT",
+  "dependencies": {
+    "date-format": "^2.1.0",
+    "sudo-prompt": "^9.0.0",
+    "worker-farm": "^1.7.0"
+  },
+  "devDependencies": {
+    "electron": "^5.0.5",
+    "electron-builder": "^20.44.4"
+  }
+}
