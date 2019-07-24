@@ -31,6 +31,10 @@
             background-color: white;
         }
 
+        .selected {
+            background-color: #f2f2f2;
+        }
+
         #ls_list thead th {
             position: sticky;
             top: 60px;
@@ -69,32 +73,77 @@
             <td><img src="images/directory.png" width="48px" height="48px" style="text-overflow: ellipsis;white-space: nowrap;" />{{ item.name }}</td>
             <td>{{ item.mtime }}</td>
             <td></td>
-            {{# } else { }}
+            {{# } else if(item.type === 'file') { }}
             <td><img src="images/file.png" width="48px" height="48px" />{{ item.name }}</td>
             <td>{{ item.mtime }}</td>
             <td>{{ bytecountToStr(item.size) }}</td>
+            {{# } else if(item.type === 'other') { }}
+            <td><img src="images/unknown.png" width="48px" height="48px" />{{ item.name }}</td>
+            <td>{{ item.mtime }}</td>
+            <td></td>
+            {{# } else if(item.type === 'link') { }}
+            <td><img src="images/file.png" width="48px" height="48px" />{{ item.name }}</td>
+            <td>{{ item.mtime }}</td>
+            <td></td>
             {{# } }}
         </tr>
     {{#  }); }}
 </script>
 
+<script id="current_path_tpl" type="text/html">
+    <button path="/" type="button" class="layui-btn layui-btn-primary layui-btn-sm" >/</button>
+    {{# var cpath = ""}}
+    {{#  layui.each(d.dirs, function(index, item){ }}
+    {{# if(item != '') { }}
+    {{# cpath += "/" + item }}
+    <button path="{{ cpath }}" type="button" class="layui-btn layui-btn-primary layui-btn-sm" >{{ item }}</button>
+    {{# } }}
+    {{#  }); }}
+</script>
+
+<script id="deleting_tpl" type="text/html">
+    <button path="/" type="button" class="layui-btn layui-btn-primary layui-btn-sm" >/</button>
+    {{# var cpath = ""}}
+    {{#  layui.each(d.dirs, function(index, item){ }}
+    {{# if(item != '') { }}
+    {{# cpath += "/" + item }}
+    <button path="{{ cpath }}" type="button" class="layui-btn layui-btn-primary layui-btn-sm" >{{ item }}</button>
+    {{# } }}
+    {{#  }); }}
+</script>
+
+<script id="scanning_tpl" type="text/html">
+    <button path="/" type="button" class="layui-btn layui-btn-primary layui-btn-sm" >/</button>
+    {{# var cpath = ""}}
+    {{#  layui.each(d.dirs, function(index, item){ }}
+    {{# if(item != '') { }}
+    {{# cpath += "/" + item }}
+    <button path="{{ cpath }}" type="button" class="layui-btn layui-btn-primary layui-btn-sm" >{{ item }}</button>
+    {{# } }}
+    {{#  }); }}
+</script>
+
 <body>
     <div>
-        <div id="toolbar" class="layui-btn-group">
-            <button id="back" type="button" class="layui-btn layui-btn-primary layui-btn-sm">
-                <i class="layui-icon">&#xe65c;</i>
-            </button>
-            <button id="home" type="button" class="layui-btn layui-btn-primary layui-btn-sm">
-                <i class="layui-icon">&#xe68e;</i>
-            </button>
-            <button id="refresh" type="button" class="layui-btn layui-btn-primary layui-btn-sm">
-                <i class="layui-icon">&#xe669;</i>
-            </button>
-            <button id="scan" type="button" class="layui-btn layui-btn-primary layui-btn-sm">
-                <i class="layui-icon">&#xe628;</i>
-            </button>
+        <div id="toolbar">
+            <div class="layui-btn-group">
+                <button id="back" type="button" class="layui-btn layui-btn-primary layui-btn-sm">
+                    <i class="layui-icon">&#xe65c;</i>
+                </button>
+                <button id="home" type="button" class="layui-btn layui-btn-primary layui-btn-sm">
+                    <i class="layui-icon">&#xe68e;</i>
+                </button>
+                <button id="refresh" type="button" class="layui-btn layui-btn-primary layui-btn-sm">
+                    <i class="layui-icon">&#xe669;</i>
+                </button>
+                <button id="scan" type="button" class="layui-btn layui-btn-primary layui-btn-sm">
+                    <i class="layui-icon">&#xe628;</i>
+                </button>
+            </div>
+            <div id='current_path' class="layui-btn-group">
+            </div>
+            
         </div>
-        <div id="scanning" style="display: none;"></div>
         <div id="scan_result" style="display: none;"></div>
         <table id="ls_list" class="layui-table" lay-skin="row" style="margin-top: 0px;">
             <colgroup>
@@ -118,7 +167,16 @@
             </tbody>
         </table>
     </div>
-
+    <div id="deleting" style="display: none;">
+        <div id="deleting_content">
+                正在删除
+        </div>
+    </div>
+    <div id="scanning" style="display: none;">
+        <div id="scanning_content">
+                正在扫描
+        </div>
+    </div>
 </body>
 <script src="layui/layui.js"></script>
 <script>
@@ -148,6 +206,11 @@
                 ls(dir);
             }
         });
+        $(document).on('click', '#file_list tr', function (e) {
+            let file = $(e.currentTarget);
+            $('#file_list tr').removeClass('selected');
+            file.addClass('selected');
+        });
 
         $(document).on('contextmenu', '#file_list tr', function (e) {
             var data = {
@@ -167,10 +230,18 @@
                         clipboard.writeText(data.path);
                         layer.msg('已复制路径到剪切板', {
                             icon: 1,
-                            time: 2000 //2秒关闭（如果不配置，默认是3秒）
-                        }); 
+                            time: 2000
+                        });
                         break;
-                    case 3: 
+                    case 3:
+                        layer.confirm('删除后文件不可恢复！确定要删除' + data.path + '?', {
+                            title: '删除',
+                            btn: ['删除', '取消']
+                            }, function(index, layero){
+                                showDeleting(data.path);
+                                rm(data.path);
+                                layer.close(index);
+                            });
                         break;
                     case 4:
                         shell.showItemInFolder(data.path);
@@ -178,6 +249,22 @@
                 }
             })
             return true;
+        });
+
+        $(document).on('click', '#current_path button', function (e) {
+            let dirPath = $(this).attr('path');
+            ls(dirPath);
+        });
+
+        $(document).on('dblclick', '#current_path button', function (e) {
+            layer.prompt({
+                value: currentPath,
+                area: '500px',
+                title: '请输入路径'
+            }, function (value, index, elem) {
+                ls(value);
+                layer.close(index);
+            });
         });
 
         $(document).on('click', '#back', function (e) {
@@ -203,15 +290,34 @@
         worker.addEventListener("message", function (event) {
             result = event.data;
             if (result.type === 'ls') {
+                console.log(result);
+                if (result.error) {
+                    layer.msg(result.error);
+                    return;
+                }
                 currentPath = result.data.dir;
                 laytpl(file_item.innerHTML).render({
                     files: result.data.files
                 }, html => {
                     document.getElementById('file_list').innerHTML = html;
+                    window.scrollTo(0, 0);
                 });
-            } else if (result.type === 'scanning') {
-
-            } else if (result.type === 'scanFinish') {
+                laytpl(current_path_tpl.innerHTML).render({
+                    dirs: currentPath.split(path.sep)
+                }, html => {
+                    document.getElementById('current_path').innerHTML = html;
+                });
+            } else if (result.type === 'rm') {
+                if (result.error) {
+                    layer.msg(result.error);
+                }
+                if (result.progress === 'doing') {
+                    showDeleting(result.data);
+                } else if (result.progress === 'finish') {
+                    ls(currentPath);
+                    hideDeleting();
+                }
+            } else if (result.type === 'scanDir') {
 
             } else if (result.type === 'stop') {
 
@@ -227,10 +333,56 @@
             worker.postMessage({ action: 'scanDir', data: dir });
         }
 
+        function rm(fpath) {
+            worker.postMessage({ action: 'rm', data: fpath });
+        }
+
         function ls(dir) {
             dir = path.resolve(dir);
             console.log('ls ' + dir);
             worker.postMessage({ action: 'ls', data: dir });
+        }
+        var showDeletingIndex = -1;
+        function showDeleting(fpath) {
+            if (showDeletingIndex != -1) {
+                document.getElementById('layui-layer' + showDeletingIndex).innerHTML = fpath;
+                return;
+            }
+            showDeletingIndex = layer.open({
+                title: false,
+                closeBtn: 0,
+                type: 1,
+                content: fpath
+            });
+            console.log('showDeleting:' + showDeletingIndex);
+        }
+
+        function hideDeleting() {
+            if (showDeletingIndex != -1) {
+                layer.close(showDeletingIndex); 
+                showDeletingIndex = -1;
+            }
+        }
+
+        var showScanningIndex = -1;
+        function showScanning() {
+            if (showScanningIndex != -1) {
+                $('#layui-layer' + showScanningIndex).innerHTML = path;
+                return;
+            }
+            showScanningIndex = layer.open({
+                title: false,
+                closeBtn: 0,
+                type: 1,
+                content: $('#scanning')
+            });
+        }
+
+        function hideScanning() {
+            if (showScanningIndex != -1) {
+                layer.close(showScanningIndex);
+                showScanningIndex = -1;
+            }
         }
 
         function stop() {
