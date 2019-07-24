@@ -48,6 +48,12 @@
             padding: 16px 4px 16px 4px;
             top: 0px;
         }
+
+        .dialog_content {
+            padding: 32px;
+            display: block;
+            word-break:break-all;
+        }
     </style>
 </head>
 
@@ -102,25 +108,31 @@
 </script>
 
 <script id="deleting_tpl" type="text/html">
-    <button path="/" type="button" class="layui-btn layui-btn-primary layui-btn-sm" >/</button>
-    {{# var cpath = ""}}
-    {{#  layui.each(d.dirs, function(index, item){ }}
-    {{# if(item != '') { }}
-    {{# cpath += "/" + item }}
-    <button path="{{ cpath }}" type="button" class="layui-btn layui-btn-primary layui-btn-sm" >{{ item }}</button>
-    {{# } }}
-    {{#  }); }}
+    <div class="dialog_content">
+        已删除:{{ d.count}} <br>当前:{{ d.path }}
+    </div>
 </script>
 
 <script id="scanning_tpl" type="text/html">
-    <button path="/" type="button" class="layui-btn layui-btn-primary layui-btn-sm" >/</button>
-    {{# var cpath = ""}}
-    {{#  layui.each(d.dirs, function(index, item){ }}
-    {{# if(item != '') { }}
-    {{# cpath += "/" + item }}
-    <button path="{{ cpath }}" type="button" class="layui-btn layui-btn-primary layui-btn-sm" >{{ item }}</button>
-    {{# } }}
-    {{#  }); }}
+    {{#
+        var bytecountToStr = function (bytes) {
+            if (bytes < 1024) {
+                return bytes + 'B';
+            } else if (bytes < 1024 * 1024) {
+                return (bytes / 1024).toFixed(2) + 'KB';
+            } else if (bytes < 1024 * 1024 * 1024) {
+                return (bytes / 1024 / 1024.0).toFixed(2) + 'MB';
+            } else if (bytes < 1024 * 1024 * 1024 * 1024) {
+                return (bytes / 1024 / 1024 / 1024.0).toFixed(2) + 'G';
+            } else {
+                return (bytes / 1024 / 1024 / 1024 / 1024.0).toFixed(2) + 'T';
+            }
+        }
+    }}
+    <div class="dialog_content">
+            当前文件:{{ d.path }} <br><br>
+            已扫描{{ d.count}}个文件，共 {{ bytecountToStr(d.size) }} <br>
+    </div>
 </script>
 
 <body>
@@ -166,16 +178,6 @@
                 </tr>
             </tbody>
         </table>
-    </div>
-    <div id="deleting" style="display: none;">
-        <div id="deleting_content">
-                正在删除
-        </div>
-    </div>
-    <div id="scanning" style="display: none;">
-        <div id="scanning_content">
-                正在扫描
-        </div>
     </div>
 </body>
 <script src="layui/layui.js"></script>
@@ -225,6 +227,18 @@
             mouseRightMenu.open(menuData, false, function (d) {
                 switch (d.type) {
                     case 1:
+                        layer.confirm('要从此处开始扫描么:' + data.path + '?', {
+                            title: '开始扫描',
+                            btn: ['扫描', '取消']
+                        }, function (index, layero) {
+                            scanDir(data.path);
+                            showScanning({
+                                count: 0,
+                                path: data.path,
+                                size: 0
+                            });
+                            layer.close(index);
+                        });
                         break;
                     case 2:
                         clipboard.writeText(data.path);
@@ -318,8 +332,17 @@
                     hideDeleting();
                 }
             } else if (result.type === 'scanDir') {
-
-            } else if (result.type === 'stop') {
+                if (result.error) {
+                    layer.msg(result.error);
+                }
+                if (result.progress === 'doing') {
+                    showScanning(result.data);
+                } else if (result.progress === 'finish') {
+                    hideScanning();
+                }
+            } else if (result.type === 'stopScan') {
+                hideScanning();
+            } else if (result.type === 'stopRm') {
 
             } else if (result.type === 'currentCount') {
 
@@ -343,16 +366,25 @@
             worker.postMessage({ action: 'ls', data: dir });
         }
         var showDeletingIndex = -1;
-        function showDeleting(fpath) {
-            if (showDeletingIndex != -1) {
-                document.getElementById('layui-layer' + showDeletingIndex).innerHTML = fpath;
-                return;
-            }
-            showDeletingIndex = layer.open({
-                title: false,
-                closeBtn: 0,
-                type: 1,
-                content: fpath
+        function showDeleting(data) {
+            laytpl(deleting_tpl.innerHTML).render(data, html => {
+                    if (showDeletingIndex != -1) {
+                        document.getElementById('layui-layer' + showDeletingIndex)
+                            .getElementsByClassName('layui-layer-content')[0].innerHTML = html;
+                        return;
+                    }
+                    showDeletingIndex = layer.open({
+                        title: '正在删除',
+                        area: '500px',
+                        scrollbar: false,
+                        btn: ['取消'],
+                        end: () => {
+                            showDeletingIndex = -1;
+                        },
+                        closeBtn: 0,
+                        type: 1,
+                        content: html
+                    });
             });
             console.log('showDeleting:' + showDeletingIndex);
         }
@@ -365,16 +397,28 @@
         }
 
         var showScanningIndex = -1;
-        function showScanning() {
-            if (showScanningIndex != -1) {
-                $('#layui-layer' + showScanningIndex).innerHTML = path;
-                return;
-            }
-            showScanningIndex = layer.open({
-                title: false,
-                closeBtn: 0,
-                type: 1,
-                content: $('#scanning')
+        function showScanning(data) {
+            laytpl(scanning_tpl.innerHTML).render(data, html => {
+                    if (showScanningIndex != -1) {
+                        document.getElementById('layui-layer' + showScanningIndex)
+                            .getElementsByClassName('layui-layer-content')[0].innerHTML = html;
+                        return;
+                    }
+                    showScanningIndex = layer.open({
+                        title: '正在扫描',
+                        area: '500px',
+                        scrollbar: false,
+                        end: () => {
+                            showScanningIndex = -1;
+                        },
+                        btn: ['停止'],
+                        closeBtn: 0,
+                        type: 1,
+                        content: html,
+                        yes: (index) => {
+                            stopScan();
+                        }
+                    });
             });
         }
 
@@ -385,8 +429,8 @@
             }
         }
 
-        function stop() {
-            worker.postMessage({ action: 'stop' });
+        function stopScan() {
+            worker.postMessage({ action: 'stopScan' });
         }
     });
 

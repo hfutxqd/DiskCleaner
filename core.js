@@ -2,10 +2,6 @@ const path = require('path');
 const fs = require('fs');
 const format = require('date-format');
 
-
-var itemCount = 0;
-var peddingStop = false;
-
 function getFile(fpath, recursive = true) {
     fpath = path.resolve(fpath);
     let realpath = fs.realpathSync(fpath);
@@ -49,10 +45,18 @@ function getFile(fpath, recursive = true) {
     }
 }
 
+var itemCount = 0;
+var totalSize = 0;
+var peddingStop = false;
+
 function readDir(dir, callback) {
     dir = path.resolve(dir);
-    if (callback && itemCount % 100 === 0) {
-        callback([itemCount, dir]);
+    if (callback) {
+        callback({
+            count: itemCount,
+            size: totalSize,
+            path: dir
+        });
     }
     let fileTree = getFile(dir, false);
     if (fileTree.type != 'dir') {
@@ -71,6 +75,7 @@ function readDir(dir, callback) {
             let file = files[i];
             let currentPath = path.resolve(dir, file);
             let status = fs.lstatSync(currentPath);
+            totalSize += status.size;
             let tree = readDir(currentPath, callback);
             fileTree.subs.push(tree);
             itemCount++;
@@ -94,15 +99,20 @@ function readDir(dir, callback) {
     return fileTree;
 }
 
+var rmCount = 0;
 function rm(fpath, callback) {
     if (callback) {
-        callback(fpath);
+        callback(fpath, rmCount);
     }
+    rmCount++;
     let status = fs.lstatSync(fpath);
     if (status.isFile() || status.isSymbolicLink()) {
         console.log('rm -> ' + fpath);
         fs.unlinkSync(fpath);
-        return fpath;
+        return {
+            count: rmCount,
+            path: fpath
+        };
     } else if (status.isDirectory()) {
         let files = fs.readdirSync(fpath);
         for (let i = 0; i < files.length; i++) {
@@ -110,13 +120,17 @@ function rm(fpath, callback) {
         }
         console.log('rm -> ' + fpath);
         fs.rmdirSync(fpath);
-        return fpath;
+        return {
+            count: rmCount,
+            path: fpath
+        };
     }
 }
 
 module.exports = {
     scanDir: (dir, callback) => {
         itemCount = 0;
+        totalSize = 0;
         peddingStop = false;
         return readDir(dir, callback);
     },
@@ -124,6 +138,7 @@ module.exports = {
         peddingStop = true;
     },
     rm: (file, callback) => {
+        rmCount = 0;
         return rm(file, callback);
     },
     ls: (dir) => {

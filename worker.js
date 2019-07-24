@@ -15,11 +15,14 @@ self.addEventListener('message', function (e) {
         }
     } else if (e.data.action === 'rm') {
         try {
-            let res = core.rm(e.data.data, fpath => {
+            let res = core.rm(e.data.data, (fpath, count) => {
                 self.postMessage({
                     type: 'rm',
                     progress: 'doing',
-                    data: fpath
+                    data: {
+                        count: count,
+                        path: fpath
+                    }
                 });
             });
             self.postMessage({
@@ -47,9 +50,14 @@ self.addEventListener('message', function (e) {
             progress: 'finish',
             data: res
         });
-    } else if (e.data.action === 'stop') {
+    } else if (e.data.action === 'stopScan') {
+        core.stop();
         self.postMessage({
-            type: 'stop'
+            type: 'stopScan'
+        });
+    } else if (e.data.action === 'stopRm') {
+        self.postMessage({
+            type: 'stopRm'
         });
     } else if (e.data.action === 'currentCount') {
         self.postMessage({
