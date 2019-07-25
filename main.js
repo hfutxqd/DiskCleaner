@@ -66,3 +66,40 @@ app.on('activate', function () {
     // dock icon is clicked and there are no other windows open.
     if (mainWindow === null) createMainWindow();
 })
+
+
+function createResultindow() {
+    let resultWindow = new BrowserWindow({
+        width: 700,
+        height: 550,
+        minWidth: 600,
+        minHeight: 300,
+        // frame: false,
+        show: false,
+        maximizable: true,
+        fullscreen: false,
+        resizable: true,
+        title: "扫描结果",
+        webPreferences: {
+            nodeIntegration: true,
+            nodeIntegrationInWorker: true,
+            preload: path.join(__dirname, 'preload.js')
+        }
+    });
+
+    resultWindow.removeMenu();
+    resultWindow.loadFile('result.html');
+
+    resultWindow.once('ready-to-show', () => {
+        resultWindow.show();
+    });
+}
+
+
+const { ipcMain } = require('electron')
+
+ipcMain.on('openResult', (event, result) => {
+    console.log('main:openResult');
+    console.log(result);
+    createResultindow();
+});

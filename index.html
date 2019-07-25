@@ -37,7 +37,7 @@
 
         #ls_list thead th {
             position: sticky;
-            top: 60px;
+            top: 61px;
         }
 
         #toolbar {
@@ -227,18 +227,7 @@
             mouseRightMenu.open(menuData, false, function (d) {
                 switch (d.type) {
                     case 1:
-                        layer.confirm('要从此处开始扫描么:' + data.path + '?', {
-                            title: '开始扫描',
-                            btn: ['扫描', '取消']
-                        }, function (index, layero) {
-                            scanDir(data.path);
-                            showScanning({
-                                count: 0,
-                                path: data.path,
-                                size: 0
-                            });
-                            layer.close(index);
-                        });
+                        startToScanDir(data.path);
                         break;
                     case 2:
                         clipboard.writeText(data.path);
@@ -300,6 +289,10 @@
             ls(currentPath);
         });
 
+        $(document).on('click', '#scan', function (e) {
+            startToScanDir(currentPath);
+        });
+
         let worker = new Worker('worker.js');
         worker.addEventListener("message", function (event) {
             result = event.data;
@@ -341,6 +334,7 @@
                     console.log(result);
                     hideLoading();
                     hideScanning();
+                    ipcRenderer.send('openResult', result);
                 }
             } else if (result.type === 'stopScan') {
                 console.log(result);
@@ -351,6 +345,21 @@
         }, false);
 
         ls(currentPath);
+
+        function startToScanDir(dir) {
+            layer.confirm('要从此处开始扫描么:' + dir + '?', {
+                title: '开始扫描',
+                btn: ['扫描', '取消']
+            }, function (index, layero) {
+                scanDir(dir);
+                showScanning({
+                    count: 0,
+                    path: dir,
+                    size: 0
+                });
+                layer.close(index);
+            });
+        }
 
         function scanDir(dir) {
             console.log('send: scanDir ' + dir);
