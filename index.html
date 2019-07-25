@@ -97,14 +97,13 @@
 </script>
 
 <script id="current_path_tpl" type="text/html">
-    <button path="/" type="button" class="layui-btn layui-btn-primary layui-btn-sm" >/</button>
-    {{# var cpath = ""}}
-    {{#  layui.each(d.dirs, function(index, item){ }}
-    {{# if(item != '') { }}
-    {{# cpath += "/" + item }}
-    <button path="{{ cpath }}" type="button" class="layui-btn layui-btn-primary layui-btn-sm" >{{ item }}</button>
-    {{# } }}
-    {{#  }); }}
+    {{# var cpath = ''; }}
+    {{# layui.each(d.dirs, function(index, item){ }}
+        {{# if(item !== ''){ }}
+            {{# cpath +=  item + d.sep; }}
+            <button path="{{ cpath }}" index="{{ index }}" type="button" class="layui-btn layui-btn-primary layui-btn-sm">{{ item }}</button>
+        {{# } }}
+    {{# }); }}
 </script>
 
 <script id="deleting_tpl" type="text/html">
@@ -198,6 +197,7 @@
         } = require('electron');
         const os = ElectronRequire('os');
         const path = ElectronRequire('path');
+        const fs = ElectronRequire('fs');
         console.log(os.platform());
         var currentPath = path.resolve('/');
         $(document).on('dblclick', '#file_list tr', function (e) {
@@ -309,8 +309,16 @@
                     document.getElementById('file_list').innerHTML = html;
                     window.scrollTo(0, 0);
                 });
+                let dirs = [];
+                if (!os.platform() === 'win32') {
+                    dirs.push(fs.realpathSync('/'));
+                    dirs = dirs.concat(currentPath.split(path.sep));
+                } else {
+                    dirs = dirs.concat(currentPath.split(path.sep));
+                }
                 laytpl(current_path_tpl.innerHTML).render({
-                    dirs: currentPath.split(path.sep)
+                    dirs: dirs,
+                    sep: path.sep
                 }, html => {
                     document.getElementById('current_path').innerHTML = html;
                 });

@@ -39,11 +39,6 @@ function createMainWindow() {
     mainWindow.once('ready-to-show', () => {
         mainWindow.show();
     });
-
-    mainWindow.webContents.on('new-window', function (e, url) {
-        e.preventDefault();
-        require('electron').shell.openExternal(url);
-    });
 }
 
 app.on('ready', () => {
@@ -68,7 +63,7 @@ app.on('activate', function () {
 })
 
 
-function createResultindow() {
+function createResultindow(result) {
     let resultWindow = new BrowserWindow({
         width: 700,
         height: 550,
@@ -89,7 +84,8 @@ function createResultindow() {
 
     resultWindow.removeMenu();
     resultWindow.loadFile('result.html');
-
+    resultWindow.webContents.openDevTools()
+    resultWindow.webContents.executeJavaScript(`setResult(${JSON.stringify(result)})`)
     resultWindow.once('ready-to-show', () => {
         resultWindow.show();
     });
@@ -101,5 +97,5 @@ const { ipcMain } = require('electron')
 ipcMain.on('openResult', (event, result) => {
     console.log('main:openResult');
     console.log(result);
-    createResultindow();
+    createResultindow(result.data);
 });
