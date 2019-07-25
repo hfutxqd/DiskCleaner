@@ -1,11 +1,12 @@
-const core = require('./core');
+const core = require('./core2');
 
-self.addEventListener('message', function (e) {
+self.addEventListener('message', async function (e) {
+    console.log('action: ' + e.data.action);
     if (e.data.action === 'ls') {
         try {
             self.postMessage({
                 type: 'ls',
-                data: core.ls(e.data.data)
+                data: await core.ls(e.data.data)
             });
         } catch (e) {
             self.postMessage({
@@ -15,7 +16,7 @@ self.addEventListener('message', function (e) {
         }
     } else if (e.data.action === 'rm') {
         try {
-            let res = core.rm(e.data.data, (fpath, count) => {
+            let res = await core.rm(e.data.data, (fpath, count) => {
                 self.postMessage({
                     type: 'rm',
                     progress: 'doing',
@@ -38,12 +39,14 @@ self.addEventListener('message', function (e) {
             });
         }
     } else if (e.data.action === 'scanDir') {
-        let res = core.scanDir(e.data.data, result => {
-            self.postMessage({
-                type: 'scanDir',
-                progress: 'doing',
-                data: result
-            });
+        let res = await core.scanDir(e.data.data, result => {
+            if (!core.isPenddingStop()) {
+                self.postMessage({
+                    type: 'scanDir',
+                    progress: 'doing',
+                    data: result
+                });
+            }
         });
         self.postMessage({
             type: 'scanDir',
@@ -55,14 +58,10 @@ self.addEventListener('message', function (e) {
         self.postMessage({
             type: 'stopScan'
         });
+        console.log('stopScan');
     } else if (e.data.action === 'stopRm') {
         self.postMessage({
             type: 'stopRm'
-        });
-    } else if (e.data.action === 'currentCount') {
-        self.postMessage({
-            type: 'count',
-            data: core.currentCount()
         });
     }
 }, false);

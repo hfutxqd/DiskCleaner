@@ -130,8 +130,8 @@
         }
     }}
     <div class="dialog_content">
-            当前文件:{{ d.path }} <br><br>
-            已扫描{{ d.count}}个文件，共 {{ bytecountToStr(d.size) }} <br>
+            <span style="display: block; height: 120px;">当前项目:{{ d.path }}</span><br><br>
+            已扫描{{ d.count }}个项目，共 {{ bytecountToStr(d.size) }} <br>
     </div>
 </script>
 
@@ -338,31 +338,33 @@
                 if (result.progress === 'doing') {
                     showScanning(result.data);
                 } else if (result.progress === 'finish') {
+                    console.log(result);
+                    hideLoading();
                     hideScanning();
                 }
             } else if (result.type === 'stopScan') {
-                hideScanning();
+                console.log(result);
+                showLoading();
             } else if (result.type === 'stopRm') {
 
-            } else if (result.type === 'currentCount') {
-
             }
-            console.log(result);
         }, false);
 
         ls(currentPath);
 
         function scanDir(dir) {
+            console.log('send: scanDir ' + dir);
             worker.postMessage({ action: 'scanDir', data: dir });
         }
 
         function rm(fpath) {
+            console.log('send: rm ' + fpath);
             worker.postMessage({ action: 'rm', data: fpath });
         }
 
         function ls(dir) {
             dir = path.resolve(dir);
-            console.log('ls ' + dir);
+            console.log('send: ls ' + dir);
             worker.postMessage({ action: 'ls', data: dir });
         }
         var showDeletingIndex = -1;
@@ -428,8 +430,23 @@
                 showScanningIndex = -1;
             }
         }
+        var loadingIndex = -1;
+        function showLoading() {
+            if (loadingIndex != -1) {
+                return;
+            }
+            loadingIndex = layer.load(2);
+        }
+
+        function hideLoading() {
+            if (loadingIndex == -1) {
+                return;
+            }
+            layer.close(loadingIndex);
+        }
 
         function stopScan() {
+            console.log('send: stopScan');
             worker.postMessage({ action: 'stopScan' });
         }
     });
