@@ -244,7 +244,8 @@
             var menuData = [
                 { 'data': data, 'type': 2, 'title': '复制文件路径' },
                 { 'data': data, 'type': 3, 'title': '删除' },
-                { 'data': data, 'type': 4, 'title': '用文件管理器打开' }
+                { 'data': data, 'type': 4, 'title': '永久删除' },
+                { 'data': data, 'type': 5, 'title': '用文件管理器打开' }
             ]
             mouseRightMenu.open(menuData, false, function (d) {
                 switch (d.type) {
@@ -256,8 +257,12 @@
                         });
                         break;
                     case 3:
+                        shell.moveItemToTrash(data.path);
+                        ls(currentPath);
+                        break;
+                    case 4:
                         layer.confirm('删除后文件不可恢复！确定要删除' + data.path + '?', {
-                            title: '删除',
+                            title: '永久删除',
                             btn: ['删除', '取消']
                         }, function (index, layero) {
                             showDeleting(data.path);
@@ -265,7 +270,7 @@
                             layer.close(index);
                         });
                         break;
-                    case 4:
+                    case 5:
                         shell.showItemInFolder(data.path);
                         break;
                 }
@@ -308,6 +313,36 @@
         function rm(fpath) {
             console.log('send: rm ' + fpath);
             worker.postMessage({ action: 'rm', data: fpath });
+        }
+
+        function remove(idpath) {
+            let ids = idpath.split('/');
+            if (ids[0] != 0) {
+                console.error('idpath must start with 0');
+                return;
+            }
+            let tmp = result;
+            let i = 0, j = 1;
+            for (; i < tmp.subs.length && j < ids.length;) {
+                let sub = tmp.subs[i];
+                if (ids[j] === '') {
+                    break;
+                }
+                if (sub.id == ids[j]) {
+                    if (sub.type === 'dir') {
+                        tmp = sub;
+                        j++;
+                        i = 0;
+                    } else {
+                        j++;
+                        tmp = sub;
+                        break;
+                    }
+                } else {
+                    i++;
+                }
+            }
+            return tmp;
         }
 
         var showDeletingIndex = -1;
