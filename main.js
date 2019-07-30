@@ -1,6 +1,6 @@
 "use strict";
 // Modules to control application life and create native browser window
-const { app, BrowserWindow } = require('electron');
+const { app, BrowserWindow, Menu } = require('electron');
 const path = require('path');
 
 let mainWindow = null;
@@ -27,7 +27,7 @@ function createMainWindow() {
             preload: path.join(__dirname, 'preload.js')
         }
     });
-
+    mainWindow.maximize();
     mainWindow.removeMenu();
 
     // and load the index.html of the app.
@@ -41,6 +41,7 @@ function createMainWindow() {
     });
 }
 
+app.dock.setMenu(new Menu());
 app.on('ready', () => {
     createMainWindow();
 });
@@ -75,16 +76,19 @@ function createResultindow(result) {
         fullscreen: false,
         resizable: true,
         title: "扫描结果",
+        modal: true,
         webPreferences: {
             nodeIntegration: true,
             nodeIntegrationInWorker: true,
             preload: path.join(__dirname, 'preload.js')
         }
     });
-
+    resultWindow.maximize();
     resultWindow.removeMenu();
     resultWindow.loadFile('result.html');
-    resultWindow.webContents.openDevTools()
+
+    // resultWindow.webContents.openDevTools()
+
     resultWindow.webContents.executeJavaScript(`setResult(${JSON.stringify(result)})`)
     resultWindow.once('ready-to-show', () => {
         resultWindow.show();
@@ -96,6 +100,5 @@ const { ipcMain } = require('electron')
 
 ipcMain.on('openResult', (event, result) => {
     console.log('main:openResult');
-    console.log(result);
     createResultindow(result.data);
 });

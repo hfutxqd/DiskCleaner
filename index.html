@@ -138,16 +138,16 @@
     <div>
         <div id="toolbar">
             <div class="layui-btn-group">
-                <button id="back" type="button" class="layui-btn layui-btn-primary layui-btn-sm">
+                <button id="back" title="上一级" type="button" class="layui-btn layui-btn-primary layui-btn-sm">
                     <i class="layui-icon">&#xe65c;</i>
                 </button>
-                <button id="home" type="button" class="layui-btn layui-btn-primary layui-btn-sm">
+                <button id="home" title="HOME" type="button" class="layui-btn layui-btn-primary layui-btn-sm">
                     <i class="layui-icon">&#xe68e;</i>
                 </button>
-                <button id="refresh" type="button" class="layui-btn layui-btn-primary layui-btn-sm">
+                <button id="refresh" title="刷新" type="button" class="layui-btn layui-btn-primary layui-btn-sm">
                     <i class="layui-icon">&#xe669;</i>
                 </button>
-                <button id="scan" type="button" class="layui-btn layui-btn-primary layui-btn-sm">
+                <button id="scan" title="扫描当前目录" type="button" class="layui-btn layui-btn-primary layui-btn-sm">
                     <i class="layui-icon">&#xe628;</i>
                 </button>
             </div>
@@ -206,6 +206,8 @@
             let type = file.attr('type');
             if (type === 'dir') {
                 ls(dir);
+            } else if (type === 'file') {
+                shell.openItem(dir);
             }
         });
         $(document).on('click', '#file_list tr', function (e) {
@@ -222,7 +224,8 @@
                 { 'data': data, 'type': 1, 'title': '扫描此项目' },
                 { 'data': data, 'type': 2, 'title': '复制文件路径' },
                 { 'data': data, 'type': 3, 'title': '删除' },
-                { 'data': data, 'type': 4, 'title': '用文件管理器打开' }
+                { 'data': data, 'type': 4, 'title': '永久删除' },
+                { 'data': data, 'type': 5, 'title': '用文件管理器打开' }
             ]
             mouseRightMenu.open(menuData, false, function (d) {
                 switch (d.type) {
@@ -237,6 +240,10 @@
                         });
                         break;
                     case 3:
+                        shell.moveItemToTrash(data.path);
+                        ls(currentPath);
+                        break;
+                    case 4:
                         layer.confirm('删除后文件不可恢复！确定要删除' + data.path + '?', {
                             title: '删除',
                             btn: ['删除', '取消']
@@ -246,7 +253,7 @@
                                 layer.close(index);
                             });
                         break;
-                    case 4:
+                    case 5:
                         shell.showItemInFolder(data.path);
                         break;
                 }
@@ -310,12 +317,14 @@
                     window.scrollTo(0, 0);
                 });
                 let dirs = [];
-                if (!os.platform() === 'win32') {
-                    dirs.push(fs.realpathSync('/'));
+                // console.log('currentPath=' + currentPath);
+                if (os.platform() !== 'win32') {
+                    dirs.push('/');
                     dirs = dirs.concat(currentPath.split(path.sep));
                 } else {
                     dirs = dirs.concat(currentPath.split(path.sep));
                 }
+                // console.log('dirs=' + JSON.stringify(dirs));
                 laytpl(current_path_tpl.innerHTML).render({
                     dirs: dirs,
                     sep: path.sep
@@ -471,3 +480,4 @@
 </script>
 
 </html>
+

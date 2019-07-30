@@ -166,6 +166,17 @@ function rm(fpath, callback) {
 
         }
     }
+    resFiles.sort((a, b) => {
+        if(a.type === b.type) {
+            return a.name.localeCompare(b.name);
+        } else if (a.type === 'dir') {
+            return -1;
+        } else if (b.type === 'dir') {
+            return 1;
+        } else {
+            return a.name.localeCompare(b.name);
+        }
+    });
     return Promise.resolve({
         dir: dir,
         files: resFiles
