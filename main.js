@@ -41,7 +41,7 @@ function createMainWindow() {
     });
 }
 
-app.dock.setMenu(new Menu());
+Menu.setApplicationMenu(null);
 app.on('ready', () => {
     createMainWindow();
 });

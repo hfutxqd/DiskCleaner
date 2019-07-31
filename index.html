@@ -218,15 +218,21 @@
 
         $(document).on('contextmenu', '#file_list tr', function (e) {
             var data = {
-                path: $(this).attr('path')
+                path: $(this).attr('path'),
+                type: $(this).attr('type')
             }
-            var menuData = [
+            var menuData = data.type === 'dir' ? [
                 { 'data': data, 'type': 1, 'title': '扫描此项目' },
                 { 'data': data, 'type': 2, 'title': '复制文件路径' },
                 { 'data': data, 'type': 3, 'title': '删除' },
                 { 'data': data, 'type': 4, 'title': '永久删除' },
                 { 'data': data, 'type': 5, 'title': '用文件管理器打开' }
-            ]
+            ] : [
+                { 'data': data, 'type': 2, 'title': '复制文件路径' },
+                { 'data': data, 'type': 3, 'title': '删除' },
+                { 'data': data, 'type': 4, 'title': '永久删除' },
+                { 'data': data, 'type': 5, 'title': '用文件管理器打开' }
+            ];
             mouseRightMenu.open(menuData, false, function (d) {
                 switch (d.type) {
                     case 1:
